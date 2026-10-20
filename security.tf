@@ -1,0 +1,54 @@
+data "http" "my_ip" {
+  url = "https://ifconfig.me/ip"
+}
+
+resource "aws_security_group" "web" {
+  name        = "SG-Web"
+  description = "Autorise SSH depuis mon IP et HTTP partout"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["${data.http.my_ip.response_body}/32"]
+  }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "SG-Web" }
+}
+
+resource "aws_security_group" "app" {
+  name        = "SG-App"
+  description = "Autorise SSH uniquement depuis SG-Web"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    security_groups = [aws_security_group.web.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "SG-App" }
+}
